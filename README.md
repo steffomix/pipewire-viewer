@@ -6,6 +6,10 @@ A desktop GUI for visualizing PipeWire audio/video graphs. Shows nodes, ports, a
 
 ---
 
+![Screenshot](images/screenshot.png)
+
+---
+
 ## Features
 
 - Live node graph from PipeWire (refreshed every second)
