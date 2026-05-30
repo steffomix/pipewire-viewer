@@ -477,9 +477,9 @@ function render() {
 let dragging = null; // { key, startMouseX, startMouseY, startPosX, startPosY }
 
 function wireDrag(el, header, key) {
-  header.addEventListener('mousedown', e => {
+  el.addEventListener('mousedown', e => {
     if (e.button !== 0) return;
-    if (e.target.closest('button,input')) return;
+    if (e.target.closest('button,input,.node-resize-handle')) return;
     e.preventDefault();
     const pos = getNodePos(key);
     dragging = {
@@ -668,9 +668,8 @@ document.addEventListener('mouseup', e => {
   panning = null;
 });
 
-// ── Canvas: ctrl+wheel zoom ───────────────────────────────────────────────────
+// ── Canvas: wheel zoom ──────────────────────────────────────────────────────────────
 viewport.addEventListener('wheel', e => {
-  if (!e.ctrlKey) return;
   e.preventDefault();
 
   const { zoom, panX, panY } = state.canvas;
