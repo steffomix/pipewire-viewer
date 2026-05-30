@@ -100,8 +100,9 @@ def _parse_pw_dump():
             })
 
         elif otype == 'PipeWire:Interface:Port':
-            direction = info.get('direction', props.get('port.direction', ''))
-            nodes.append(None)  # placeholder; will be filtered
+            raw_dir = info.get('direction', props.get('port.direction', ''))
+            # Normalise to short form used by the frontend
+            direction = 'out' if raw_dir in ('out', 'output') else 'in'
             ports.append({
                 'id': oid,
                 'nodeId': int(props.get('node.id', -1)),
@@ -121,8 +122,6 @@ def _parse_pw_dump():
                 'active': state == 'active',
             })
 
-    # Remove the placeholder Nones added inside the Port branch
-    nodes = [n for n in nodes if n is not None]
     return nodes, ports, links
 
 
