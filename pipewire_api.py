@@ -1,8 +1,11 @@
 import json
+import os
 import subprocess
 import threading
 import time
 import logging
+
+STATE_PATH = os.path.join(os.path.expanduser('~'), '.config', 'pipewire-viewer', 'state.json')
 
 logger = logging.getLogger(__name__)
 
@@ -206,3 +209,25 @@ class PipewireAPI:
     def get_data(self):
         """Return the latest Pipewire data as a JSON string."""
         return self._cache
+
+    def save_state(self, data):
+        """Persist UI state (positions, widths, names, collapsed, canvas) to disk."""
+        try:
+            json.loads(data)  # validate before writing
+            os.makedirs(os.path.dirname(STATE_PATH), exist_ok=True)
+            with open(STATE_PATH, 'w', encoding='utf-8') as f:
+                f.write(data)
+        except Exception as e:
+            logger.warning('save_state error: %s', e)
+        return True
+
+    def load_state(self):
+        """Return persisted UI state as JSON string, or empty object string."""
+        try:
+            with open(STATE_PATH, 'r', encoding='utf-8') as f:
+                return f.read()
+        except FileNotFoundError:
+            return '{}'
+        except Exception as e:
+            logger.warning('load_state error: %s', e)
+            return '{}'

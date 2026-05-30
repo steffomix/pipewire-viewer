@@ -1,6 +1,6 @@
 /* ─────────────────────────────────────────────────────────────────────────
    Pipewire Viewer — app.js
-   All UI logic: canvas, nodes, ports, cables, drag/resize, localStorage.
+   All UI logic: canvas, nodes, ports, cables, drag/resize, persistence.
    ───────────────────────────────────────────────────────────────────────── */
 
 'use strict';
@@ -13,7 +13,6 @@ const PORT_DOT_R = 5;   // radius of port circle (half of --port-dot)
 const GRID_COL   = 320;
 const GRID_ROW   = 400;
 const CABLE_CTRL = 130; // bezier control point horizontal offset
-const LS = window.localStorage;
 
 // ── State ────────────────────────────────────────────────────────────────────
 const state = {
@@ -50,29 +49,31 @@ const TYPE_COLORS = {
   'unknown':      '#64748b',
 };
 
-// ── LocalStorage helpers ──────────────────────────────────────────────────────
-function lsGet(key, def) {
-  try { const v = LS.getItem('pwv_' + key); return v === null ? def : JSON.parse(v); }
-  catch { return def; }
-}
-function lsSet(key, val) {
-  try { LS.setItem('pwv_' + key, JSON.stringify(val)); } catch {}
+// ── Persistence: Python-side JSON file via API ────────────────────────────────
+// persistState() is fire-and-forget; called after every user interaction.
+function persistState() {
+  const payload = JSON.stringify({ ui: state.ui, canvas: state.canvas });
+  pywebview.api.save_state(payload).catch(err => console.warn('save_state:', err));
 }
 
+// loadUI() returns a Promise; callers must .then() before rendering.
 function loadUI() {
-  state.ui.positions = lsGet('positions', {});
-  state.ui.widths    = lsGet('widths',    {});
-  state.ui.names     = lsGet('names',     {});
-  state.ui.collapsed = lsGet('collapsed', {});
-  const c = lsGet('canvas', { panX: 0, panY: 0, zoom: 1 });
-  state.canvas = c;
-  applyCanvasTransform();
+  return pywebview.api.load_state().then(raw => {
+    try {
+      const saved = JSON.parse(raw);
+      if (saved.ui) {
+        state.ui.positions = saved.ui.positions || {};
+        state.ui.widths    = saved.ui.widths    || {};
+        state.ui.names     = saved.ui.names     || {};
+        state.ui.collapsed = saved.ui.collapsed || {};
+      }
+      if (saved.canvas) {
+        state.canvas = Object.assign({ panX: 0, panY: 0, zoom: 1 }, saved.canvas);
+        applyCanvasTransform();
+      }
+    } catch {}
+  }).catch(() => {});
 }
-function savePositions() { lsSet('positions', state.ui.positions); }
-function saveWidths()    { lsSet('widths',    state.ui.widths); }
-function saveNames()     { lsSet('names',     state.ui.names); }
-function saveCollapsed() { lsSet('collapsed', state.ui.collapsed); }
-function saveCanvas()    { lsSet('canvas',    state.canvas); }
 
 // ── Canvas transform ─────────────────────────────────────────────────────────
 function applyCanvasTransform() {
@@ -100,7 +101,7 @@ function autoPlace(nodeKey) {
     const y = 40 + row * GRID_ROW;
     if (!occupied.has(`${x},${y}`)) {
       state.ui.positions[nodeKey] = { x, y };
-      savePositions();
+      persistState();
       return { x, y };
     }
     col++;
@@ -512,7 +513,7 @@ document.addEventListener('mouseup', e => {
   if (!dragging) return;
   const el = nodeEls[dragging.key];
   if (el) el.style.zIndex = '';
-  savePositions();
+  persistState();
   dragging = null;
 });
 
@@ -542,7 +543,7 @@ document.addEventListener('mousemove', e => {
 
 document.addEventListener('mouseup', () => {
   if (!resizing) return;
-  saveWidths();
+  persistState();
   resizing = null;
 });
 
@@ -553,7 +554,7 @@ function wireCollapse(el, btn, key) {
     state.ui.collapsed[key] = !state.ui.collapsed[key];
     el.classList.toggle('collapsed', state.ui.collapsed[key]);
     btn.textContent = state.ui.collapsed[key] ? '▸' : '▾';
-    saveCollapsed();
+    persistState();
     computePortPositions();
     drawCables();
   });
@@ -574,7 +575,7 @@ function wireNameEdit(el, display, input, key, node) {
     const val = input.value.trim();
     if (val) {
       state.ui.names[key] = val;
-      saveNames();
+      persistState();
     }
     display.textContent = state.ui.names[key] || node.description || node.name;
     display.style.display = '';
@@ -663,7 +664,7 @@ document.addEventListener('mousemove', e => {
 document.addEventListener('mouseup', e => {
   if (e.button !== 1 || !panning) return;
   viewport.classList.remove('panning');
-  saveCanvas();
+  persistState();
   panning = null;
 });
 
@@ -685,7 +686,7 @@ viewport.addEventListener('wheel', e => {
   state.canvas.zoom = newZoom;
 
   applyCanvasTransform();
-  saveCanvas();
+  persistState();
 }, { passive: false });
 
 // ── Data polling ──────────────────────────────────────────────────────────────
@@ -710,13 +711,13 @@ function poll() {
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-window.addEventListener('pywebviewready', () => {
-  loadUI();
-  poll();
-});
+function init() {
+  loadUI().then(() => poll());
+}
+
+window.addEventListener('pywebviewready', init);
 
 // Fallback if pywebviewready already fired (e.g. page reload)
 if (typeof pywebview !== 'undefined' && pywebview.api) {
-  loadUI();
-  poll();
+  init();
 }
