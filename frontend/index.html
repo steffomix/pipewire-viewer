@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pipewire Viewer</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="viewport">
+    <div id="canvas">
+      <svg id="svg-cables" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div id="nodes-layer"></div>
+    </div>
+  </div>
+
+  <!-- Original-name popup (shared, positioned by JS) -->
+  <div id="info-popup" class="info-popup hidden">
+    <div class="info-popup-row">
+      <span class="info-popup-label">Name</span>
+      <span id="info-popup-name" class="info-popup-value mono"></span>
+      <button id="info-popup-copy-name" class="copy-btn" title="Kopieren">⎘</button>
+    </div>
+    <div class="info-popup-row">
+      <span class="info-popup-label">Beschreibung</span>
+      <span id="info-popup-desc" class="info-popup-value"></span>
+      <button id="info-popup-copy-desc" class="copy-btn" title="Kopieren">⎘</button>
+    </div>
+    <div class="info-popup-row">
+      <span class="info-popup-label">Typ</span>
+      <span id="info-popup-class" class="info-popup-value mono"></span>
+    </div>
+  </div>
+
+  <!-- Toast notification -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
